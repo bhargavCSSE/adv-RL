@@ -249,6 +249,7 @@ class Agent:
                 total_loss.backward()
                 data_grad = states.grad.data
 
+        self.memory.clear_memory()
         return data_grad
 
 
