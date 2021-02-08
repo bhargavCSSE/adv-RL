@@ -48,7 +48,7 @@ class PPOMemory:
         self.dones = []
 
 class ActorNetwork(nn.Module):
-    def __init__(self, n_actions, input_dims, alpha, fc1_dims=256, fc2_dims=256, chkpt_dir='tmp/ppo'):
+    def __init__(self, n_actions, input_dims, alpha, fc1_dims=200, fc2_dims=200, chkpt_dir='tmp/ppo'):
         super(ActorNetwork, self).__init__()
 
         self.checkpoint_file = os.path.join(chkpt_dir, 'actor_torch_ppo')
@@ -106,14 +106,16 @@ class CriticNetwork(nn.Module):
         self.load_state_dict(T.load(self.checkpoint_file))
 
 class Agent:
-    def __init__(self, input_dims, n_actions, gamma=0.99, alpha=0.0003, gae_lambda=0.95, policy_clip=0.2, batch_size=64, N=2048, n_epochs=10):
+    def __init__(self, input_dims, n_actions, gamma=0.99, alpha=0.0003, 
+                gae_lambda=0.95, policy_clip=0.2, batch_size=64, N=2048, n_epochs=10, 
+                fc1_dims=256, fc2_dims=256, chkpt_dir='tmp/ppo'):
         self.gamma = gamma
         self.policy_clip = policy_clip
         self.n_epochs = n_epochs
         self.gae_lambda = gae_lambda
 
-        self.actor = ActorNetwork(n_actions, input_dims, alpha)
-        self.critic = CriticNetwork(input_dims, alpha)
+        self.actor = ActorNetwork(n_actions ,input_dims, alpha, fc1_dims=fc1_dims, fc2_dims=fc2_dims, chkpt_dir=chkpt_dir)
+        self.critic = CriticNetwork(input_dims, alpha, fc1_dims=fc1_dims, fc2_dims=fc2_dims, chkpt_dir=chkpt_dir)
         self.memory = PPOMemory(batch_size)
 
     def remember(self, state, action, probs, vals, reward, done):

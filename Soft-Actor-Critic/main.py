@@ -11,8 +11,8 @@ if __name__ == '__main__':
     render = False
     use_timesteps = False
     load_checkpoint = False
-    n_trials = 3
-    n_games = 10000
+    n_trials = 5
+    n_games = 2000
     n_timesteps = 2e6
     total_timesteps = 0
     best_score = env.reward_range[0]

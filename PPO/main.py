@@ -14,7 +14,7 @@ if __name__ == "__main__":
     N = 20
     batch_size = 5
     n_epochs = 4
-    alpha = 0.0003
+    alpha = 0.0005 
     best_score = env.reward_range[0]
 
     score_book = {}
@@ -25,7 +25,8 @@ if __name__ == "__main__":
     for trial in range(n_trials):
         print('\nTrial:', trial+1)
         agent = Agent(n_actions=env.action_space.n, batch_size=batch_size, alpha=alpha,
-                        n_epochs=n_epochs, input_dims=env.observation_space.shape)
+                        n_epochs=n_epochs, input_dims=env.observation_space.shape,
+                        fc1_dims=200, fc2_dims=200, chkpt_dir='tmp/adv')
         
         score_history = []
         avg_score_history = []
@@ -79,21 +80,23 @@ if __name__ == "__main__":
                     print("Saving Model")
                     agent.save_models()
         
+        # print('episode', i, 'score %.1f' % score, 'avg_score %.1f' % avg_score, 'time_steps', n_steps, 'learning_steps', learn_iters)
+        
         score_book[trial] = score_history
         actor_loss_book[trial] = actor_loss
         critic_loss_book[trial] = critic_loss
         total_loss_book[trial] = total_loss
 
-            # print('episode', i, 'score %.1f' % score, 'avg_score %.1f' % avg_score, 'time_steps', n_steps, 'learning_steps', learn_iters)
+            
     print("\nStoring rewards data...")
     a = pd.DataFrame(score_book)
-    a.to_csv('data/PPO-LunarLander1000-rewards-test.csv')
+    a.to_csv('data/PPOadv-LunarLander1000-rewards-test.csv')
     if not load_checkpoint:
         print("\nStoring losses...")
         b = pd.DataFrame(actor_loss_book)
-        b.to_csv('data/PPO-LunarLander1000-actor_loss.csv')
+        b.to_csv('data/PPOadv-LunarLander2000-actor_loss.csv')
         c = pd.DataFrame(critic_loss_book)
-        c.to_csv('data/PPO-LunarLander1000-critic_loss.csv')
+        c.to_csv('data/PPOadv-LunarLander2000-critic_loss.csv')
         d = pd.DataFrame(total_loss_book)
-        d.to_csv('data/PPO-LunarLander1000-total_loss.csv')
+        d.to_csv('data/PPOadv-LunarLander2000-total_loss.csv')
     print("Experiment finshed")
