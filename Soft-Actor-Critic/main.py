@@ -10,9 +10,9 @@ if __name__ == '__main__':
     env = gym.make('LunarLanderContinuous-v2')
     render = False
     use_timesteps = False
-    load_checkpoint = False
+    load_checkpoint = True
     n_trials = 5
-    n_games = 2000
+    n_games = 1000
     n_timesteps = 2e6
     total_timesteps = 0
     best_score = env.reward_range[0]
@@ -95,7 +95,7 @@ if __name__ == '__main__':
 
     print("\nStoring rewards data...")
     a = pd.DataFrame(score_book)
-    a.to_csv('data/SAC-LunarLander10000-rewards-train.csv')
+    a.to_csv('data/SAC-LunarLander1000-rewards-test.csv')
     if not load_checkpoint:
         print("\nStoring losses...")
         b = pd.DataFrame(value_loss_book)
