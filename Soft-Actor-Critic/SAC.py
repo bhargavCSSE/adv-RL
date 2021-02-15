@@ -6,18 +6,33 @@ from buffer import ReplayBuffer
 from networks import ActorNetwork, CriticNetwork, ValueNetwork
 
 class Agent():
-    def __init__(self, alpha=0.0003, beta= 0.0003, input_dims=[8], env=None, gamma=0.99, n_actions=2, max_size=1000000, tau=0.005, layer1_size=256, layer2_size=256, batch_size=256, reward_scale=2):
+    def __init__(self, alpha=0.0003, beta= 0.0003, input_dims=[8], env=None, 
+                gamma=0.99, n_actions=2, max_size=1000000, tau=0.005, 
+                ent_alpha = 0.02, batch_size=256, reward_scale=2, 
+                layer1_size=256, layer2_size=256, chkpt_dir='tmp/sac'):
         self.gamma = gamma
         self.tau = tau
         self.memory = ReplayBuffer(max_size, input_dims, n_actions)
         self.batch_size = batch_size
         self.n_actions = n_actions
+        self.ent_alpha = ent_alpha
 
-        self.actor = ActorNetwork(alpha, input_dims, n_actions=n_actions, name='actor', max_action=env.action_space.high)
-        self.critic_1 = CriticNetwork(beta, input_dims, n_actions=n_actions, name='critic_1')
-        self.critic_2 = CriticNetwork(beta, input_dims, n_actions=n_actions, name='critic_2')
-        self.value = ValueNetwork(beta, input_dims, name='value')
-        self.target_value = ValueNetwork(beta, input_dims, name='target_value')
+        self.actor = ActorNetwork(alpha, input_dims, n_actions=n_actions, 
+                                fc1_dims=layer1_size, fc2_dims=layer2_size ,
+                                name='actor', max_action=env.action_space.high, chkpt_dir=chkpt_dir)
+
+        self.critic_1 = CriticNetwork(beta, input_dims, n_actions=n_actions, 
+                                fc1_dims=layer1_size, fc2_dims=layer2_size ,name='critic_1',
+                                chkpt_dir=chkpt_dir)
+        self.critic_2 = CriticNetwork(beta, input_dims, n_actions=n_actions, 
+                                fc1_dims=layer1_size, fc2_dims=layer2_size ,name='critic_2',
+                                chkpt_dir=chkpt_dir)
+        self.value = ValueNetwork(beta, input_dims, 
+                                fc1_dims=layer1_size, fc2_dims=layer2_size ,name='value',
+                                chkpt_dir=chkpt_dir)
+        self.target_value = ValueNetwork(beta, input_dims, 
+                                fc1_dims=layer1_size, fc2_dims=layer2_size ,name='target_value',
+                                chkpt_dir=chkpt_dir)
 
         self.scale = reward_scale
         self.update_network_parameters(tau=1)
@@ -86,7 +101,7 @@ class Agent():
         critic_value = critic_value.view(-1)
 
         self.value.optimizer.zero_grad()
-        value_target = critic_value - log_probs
+        value_target = critic_value - self.ent_alpha*log_probs
         value_loss = 0.5*F.mse_loss(value, value_target)
         value_loss.backward(retain_graph=True)
         self.value.optimizer.step()
@@ -98,7 +113,7 @@ class Agent():
         critic_value = T.min(q1_new_policy, q2_new_policy)
         critic_value = critic_value.view(-1)
 
-        actor_loss = log_probs - critic_value
+        actor_loss = self.ent_alpha*log_probs - critic_value
         actor_loss = T.mean(actor_loss)
         self.actor.optimizer.zero_grad()
         actor_loss.backward(retain_graph=True)
@@ -126,3 +141,34 @@ class Agent():
         critic_loss = critic_loss.cpu().detach().numpy()
 
         return value_loss, actor_loss, critic_1_loss, critic_2_loss, critic_loss
+    
+    def compute_grads(self):
+        if self.memory.mem_cntr < self.batch_size:
+            return False
+        
+        state, action, reward, next_state, done = self.memory.sample_buffer(self.batch_size)
+
+        reward = T.tensor(reward, dtype=T.float).to(self.actor.device)
+        done = T.tensor(done).to(self.actor.device)
+        state_ = T.tensor(next_state, dtype=T.float).to(self.actor.device)
+        state = T.tensor(state, dtype=T.float).to(self.actor.device)
+        state.requires_grad = True
+        action = T.tensor(action, dtype=T.float).to(self.actor.device)
+
+        value_ = self.target_value(state_).view(-1)
+        value_[done] = 0.0
+
+        actions, log_probs = self.actor.sample_normal(state, reparameterize=True)
+        log_probs = log_probs.view(-1)
+        q1_new_policy = self.critic_1.forward(state, actions)
+        q2_new_policy = self.critic_2.forward(state, actions)
+        critic_value = T.min(q1_new_policy, q2_new_policy)
+        critic_value = critic_value.view(-1)
+
+        actor_loss = self.ent_alpha*log_probs - critic_value
+        actor_loss = T.mean(actor_loss)
+        self.actor.optimizer.zero_grad()
+        actor_loss.backward()
+        data_grad = state.grad.data
+
+        return data_grad.mean(axis=0)

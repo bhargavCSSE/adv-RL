@@ -1,4 +1,13 @@
-import pybullet_envs
+import torch as T
+import torch.nn as nn
+import torch.nn.functional as F
+
+def fgsm_attack(observation, epsilon, data_grad):
+    observation = T.tensor(observation)
+    sign_data_grad = data_grad.sign()
+    perturbed_observation = observation + epsilon*sign_data_grad
+    return perturbed_observation.cpu().detach().numpy()
+
 import gym
 import numpy as np
 import pandas as pd
@@ -12,8 +21,8 @@ if __name__ == '__main__':
     use_timesteps = False
     load_checkpoint = True
     chkpt_dir = 'tmp/sac'
-    n_trials = 5
-    n_games = 2000
+    n_trials = 10
+    n_games = 100
     alpha = 0.0003
     beta = 0.0003
     gamma = 0.99
@@ -24,6 +33,7 @@ if __name__ == '__main__':
     reward_scale = 2
     n_timesteps = 2e6
     total_timesteps = 0
+    perturbation = 0.9
     best_score = env.reward_range[0]
     reward_history = []    
     
@@ -66,6 +76,11 @@ if __name__ == '__main__':
             
                 action = agent.choose_actions(observation)
                 observation_, reward, done, info = env.step(action)
+
+                data_grad = agent.compute_grads()
+                if data_grad is not False:
+                    observation_ = fgsm_attack(observation_, perturbation, data_grad)
+
                 score += reward
                 reward_history.append(reward)
                 agent.remember(observation, action, reward, observation_, done)
@@ -107,7 +122,7 @@ if __name__ == '__main__':
 
     print("\nStoring rewards data...")
     a = pd.DataFrame(score_book)
-    a.to_csv('data/Primary-model/SAC-LunarLander1000-rewards-test.csv')
+    a.to_csv('data/Whitebox/SAC-LunarLander100x10-rewards-testFGSM_'+str(int(10*perturbation))+'.csv')
     if not load_checkpoint:
         print("\nStoring losses...")
         b = pd.DataFrame(value_loss_book)
