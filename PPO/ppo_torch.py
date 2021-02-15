@@ -252,8 +252,7 @@ class Agent:
                 data_grad = states.grad.data
 
         self.memory.clear_memory()
-        return data_grad
-
+        return data_grad.mean(axis=0)
 
 
 

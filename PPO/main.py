@@ -9,8 +9,8 @@ if __name__ == "__main__":
     env = gym.make('LunarLander-v2')    
     load_checkpoint = True
     render = False
-    n_trials = 5
-    n_games = 1000
+    n_trials = 10
+    n_games = 100
     N = 20
     batch_size = 5
     n_epochs = 4
@@ -26,7 +26,7 @@ if __name__ == "__main__":
         print('\nTrial:', trial+1)
         agent = Agent(n_actions=env.action_space.n, batch_size=batch_size, alpha=alpha,
                         n_epochs=n_epochs, input_dims=env.observation_space.shape,
-                        fc1_dims=200, fc2_dims=200, chkpt_dir='tmp/adv')
+                        fc1_dims=256, fc2_dims=256, chkpt_dir='tmp/ppo')
         
         score_history = []
         avg_score_history = []
@@ -90,13 +90,13 @@ if __name__ == "__main__":
             
     print("\nStoring rewards data...")
     a = pd.DataFrame(score_book)
-    a.to_csv('data/PPOadv-LunarLander1000-rewards-test.csv')
+    a.to_csv('data/PPO-LunarLander1000-rewards-test.csv')
     if not load_checkpoint:
         print("\nStoring losses...")
         b = pd.DataFrame(actor_loss_book)
-        b.to_csv('data/PPOadv-LunarLander2000-actor_loss.csv')
+        b.to_csv('data/PPO-LunarLander2000-actor_loss.csv')
         c = pd.DataFrame(critic_loss_book)
-        c.to_csv('data/PPOadv-LunarLander2000-critic_loss.csv')
+        c.to_csv('data/PPO-LunarLander2000-critic_loss.csv')
         d = pd.DataFrame(total_loss_book)
-        d.to_csv('data/PPOadv-LunarLander2000-total_loss.csv')
+        d.to_csv('data/PPO-LunarLander2000-total_loss.csv')
     print("Experiment finshed")

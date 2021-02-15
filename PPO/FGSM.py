@@ -20,13 +20,14 @@ if __name__ == "__main__":
     env = gym.make('LunarLander-v2')    
     load_checkpoint = True
     render = False
-    n_trials = 5
-    n_games = 1000
+    n_trials = 10
+    n_games = 100
     N = 20
     batch_size = 5
     n_epochs = 4
     alpha = 0.0003
     best_score = env.reward_range[0]
+    perturbation = 0.9
 
     score_book = {}
     actor_loss_book = {}
@@ -36,7 +37,8 @@ if __name__ == "__main__":
     for trial in range(n_trials):
         print('\nTrial:', trial+1)
         agent = Agent(n_actions=env.action_space.n, batch_size=batch_size, alpha=alpha,
-                        n_epochs=n_epochs, input_dims=env.observation_space.shape)
+                        n_epochs=n_epochs, input_dims=env.observation_space.shape,
+                        fc1_dims=256, fc2_dims=256, chkpt_dir='tmp/ppo')
         
         score_history = []
         avg_score_history = []
@@ -47,7 +49,7 @@ if __name__ == "__main__":
 
         learn_iters = 0
         avg_score = 0
-        n_steps = 1
+        n_steps = 0
         have_grad = False
         data_grad = []
 
@@ -66,12 +68,11 @@ if __name__ == "__main__":
                 action, prob, val = agent.choose_action(observation)
                 observation_, reward, done, info = env.step(action)
 
-                if n_steps % N == 0:
+                if (n_steps != 0) and (n_steps % N == 0):
                     data_grad = agent.compute_grads()
                     have_grad = True
                 if have_grad:
-                    observation_ = fgsm_attack(observation_, 0.9, data_grad)
-                    observation_ = np.mean(observation_, axis=0)
+                    observation_ = fgsm_attack(observation_, perturbation, data_grad)
                 
                 n_steps += 1
                 score += reward
@@ -102,7 +103,7 @@ if __name__ == "__main__":
             # print('episode', i, 'score %.1f' % score, 'avg_score %.1f' % avg_score, 'time_steps', n_steps, 'learning_steps', learn_iters)
     print("\nStoring rewards data...")
     a = pd.DataFrame(score_book)
-    a.to_csv('data/PPO-LunarLander1000-rewards-testFGSM0_9.csv')
+    a.to_csv('data/PPO-LunarLander1000-rewards-testFGSM_'+str(int(10*perturbation))+'.csv')
     if not load_checkpoint:
         print("\nStoring losses...")
         b = pd.DataFrame(actor_loss_book)
