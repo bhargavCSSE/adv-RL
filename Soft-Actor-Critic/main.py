@@ -10,9 +10,9 @@ if __name__ == '__main__':
     env = gym.make('LunarLanderContinuous-v2')
     render = False
     use_timesteps = False
-    load_checkpoint = True
-    chkpt_dir = 'tmp/sac'
-    n_trials = 5
+    load_checkpoint = False
+    chkpt_dir = 'tmp/sac_1'
+    n_trials = 2
     n_games = 2000
     alpha = 0.0003
     beta = 0.0003
@@ -20,8 +20,8 @@ if __name__ == '__main__':
     max_size = 1000000
     batch_size = 256
     tau = 0.005
-    ent_alpha = 0.2
-    reward_scale = 2
+    ent_alpha = 0.5
+    reward_scale = 1
     n_timesteps = 2e6
     total_timesteps = 0
     best_score = env.reward_range[0]
