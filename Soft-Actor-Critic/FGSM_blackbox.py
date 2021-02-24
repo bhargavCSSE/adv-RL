@@ -1,4 +1,13 @@
-import pybullet_envs
+import torch as T
+import torch.nn as nn
+import torch.nn.functional as F
+
+def fgsm_attack(observation, epsilon, data_grad):
+    observation = T.tensor(observation)
+    sign_data_grad = data_grad.sign()
+    perturbed_observation = observation + epsilon*sign_data_grad
+    return perturbed_observation.cpu().detach().numpy()
+
 import gym
 import numpy as np
 import pandas as pd
@@ -10,20 +19,21 @@ if __name__ == '__main__':
     env = gym.make('LunarLanderContinuous-v2')
     render = False
     use_timesteps = False
-    load_checkpoint = False
-    chkpt_dir = 'tmp/adv'
-    n_trials = 5
-    n_games = 500
+    load_checkpoint = True
+    chkpt_dir = 'tmp/sac'
+    n_trials = 10
+    n_games = 100
     alpha = 0.0003
     beta = 0.0003
     gamma = 0.99
     max_size = 1000000
-    batch_size = 100
+    batch_size = 256
     tau = 0.005
-    ent_alpha = 0.5
-    reward_scale = 1
+    ent_alpha = 0.2
+    reward_scale = 2
     n_timesteps = 2e6
     total_timesteps = 0
+    perturbation = 0.9
     best_score = env.reward_range[0]
     reward_history = []    
     
@@ -36,7 +46,7 @@ if __name__ == '__main__':
 
     for trial_num in range(n_trials):
         print('\nTrial num:', trial_num+1)
-        agent = Agent(input_dims=env.observation_space.shape, layer1_size=200, layer2_size=200,
+        agent = Agent(input_dims=env.observation_space.shape, layer1_size=256, layer2_size=256,
                     env=env, n_actions=env.action_space.shape[0], alpha=alpha, beta=beta, 
                     gamma=gamma, max_size=max_size, tau=tau, ent_alpha=ent_alpha, batch_size=batch_size,
                     reward_scale = reward_scale, chkpt_dir=chkpt_dir)
@@ -66,6 +76,11 @@ if __name__ == '__main__':
             
                 action = agent.choose_actions(observation)
                 observation_, reward, done, info = env.step(action)
+
+                data_grad = agent.compute_grads()
+                if data_grad is not False:
+                    observation_ = fgsm_attack(observation_, perturbation, data_grad)
+
                 score += reward
                 reward_history.append(reward)
                 agent.remember(observation, action, reward, observation_, done)
@@ -107,17 +122,17 @@ if __name__ == '__main__':
 
     print("\nStoring rewards data...")
     a = pd.DataFrame(score_book)
-    a.to_csv('data/Adv-model/SAC-LunarLander1000-rewards-test.csv')
+    a.to_csv('data/Whitebox/SAC-LunarLander100x10-rewards-testFGSM_'+str(int(10*perturbation))+'.csv')
     if not load_checkpoint:
         print("\nStoring losses...")
         b = pd.DataFrame(value_loss_book)
-        b.to_csv('data/Adv_model/SAC-LunarLander1000-value_loss.csv')
+        b.to_csv('data/SAC-LunarLander1000-value_loss.csv')
         c = pd.DataFrame(actor_loss_book)
-        c.to_csv('data/Adv_model/SAC-LunarLander1000-actor_loss.csv')
+        c.to_csv('data/SAC-LunarLander1000-actor_loss.csv')
         d = pd.DataFrame(critic_1_loss_book)
-        d.to_csv('data/Adv_model/SAC-LunarLander1000-critic_1_loss.csv')
+        d.to_csv('data/SAC-LunarLander1000-critic_1_loss.csv')
         e = pd.DataFrame(critic_2_loss_book)
-        e.to_csv('data/Adv_model/SAC-LunarLander1000-critic_2_loss.csv')
+        e.to_csv('data/SAC-LunarLander1000-critic_2_loss.csv')
         f = pd.DataFrame(critic_loss_book)
-        f.to_csv('data/Adv_model/SAC-LunarLander1000-critic_loss.csv')
+        f.to_csv('data/SAC-LunarLander1000-critic_loss.csv')
     print("\nExperiment finished")
