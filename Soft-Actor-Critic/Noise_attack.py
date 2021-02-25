@@ -1,19 +1,14 @@
-import torch as T
-import torch.nn as nn
-import torch.nn.functional as F
-
-def fgsm_attack(observation, epsilon, data_grad):
-    observation = T.tensor(observation)
-    sign_data_grad = data_grad.sign()
-    perturbed_observation = observation + epsilon*sign_data_grad
-    return perturbed_observation.cpu().detach().numpy()
-
 import gym
 import numpy as np
 import pandas as pd
 from SAC import Agent
 from tqdm import tqdm
 from matplotlib import pyplot as plt
+
+def noise_attack(observation, epsilon):
+    noise = np.sign(np.random.normal(0, 1, len(observation)))
+    perturbed_observation = observation + epsilon*noise
+    return perturbed_observation
 
 perturb = [0.0, 0.1, 0.3, 0.5, 0.7, 0.9]
 
@@ -55,11 +50,6 @@ if __name__ == '__main__':
                         gamma=gamma, max_size=max_size, tau=tau, ent_alpha=ent_alpha, batch_size=batch_size,
                         reward_scale = reward_scale, chkpt_dir=chkpt_dir)
             
-            advAgent = Agent(input_dims=env.observation_space.shape, layer1_size=200, layer2_size=200,
-                        env=env, n_actions=env.action_space.shape[0], alpha=alpha, beta=beta, 
-                        gamma=gamma, max_size=max_size, tau=tau, ent_alpha=ent_alpha, batch_size=100,
-                        reward_scale = reward_scale, chkpt_dir=adv_dir)
-            
             score_history = []
             loss = []
             value_loss = []
@@ -87,15 +77,12 @@ if __name__ == '__main__':
                     action = agent.choose_actions(observation)
                     observation_, reward, done, info = env.step(action)
 
-                    data_grad = advAgent.compute_grads()
-                    if data_grad is not False:
-                        observation_ = fgsm_attack(observation_, perturbation, data_grad)
+                    observation_ = noise_attack(observation_, perturbation)
 
                     score += reward
                     reward_history.append(reward)
                     
                     agent.remember(observation, action, reward, observation_, done)
-                    advAgent.remember(observation, action, reward, observation_, done)
                     
                     if not load_checkpoint:
                         loss.append(agent.learn())
@@ -134,7 +121,7 @@ if __name__ == '__main__':
 
         print("\nStoring rewards data...")
         a = pd.DataFrame(score_book)
-        a.to_csv('data/Blackbox/SAC-LunarLander100x10-rewards-testFGSM_'+str(int(10*perturbation))+'.csv')
+        a.to_csv('data/Noise/SAC-LunarLander100x10-rewards-testFGSM_'+str(int(10*perturbation))+'.csv')
         # if not load_checkpoint:
         #     print("\nStoring losses...")
         #     b = pd.DataFrame(value_loss_book)

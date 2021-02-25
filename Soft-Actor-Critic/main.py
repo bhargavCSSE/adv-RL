@@ -20,8 +20,8 @@ if __name__ == '__main__':
     max_size = 1000000
     batch_size = 100
     tau = 0.005
-    ent_alpha = 0.5
-    reward_scale = 1
+    ent_alpha = 1
+    reward_scale = 2
     n_timesteps = 2e6
     total_timesteps = 0
     best_score = env.reward_range[0]
@@ -107,17 +107,17 @@ if __name__ == '__main__':
 
     print("\nStoring rewards data...")
     a = pd.DataFrame(score_book)
-    a.to_csv('data/Adv-model/SAC-LunarLander1000-rewards-test.csv')
+    a.to_csv('data/Adv-model/SAC-LunarLander500x5-rewards-test.csv')
     if not load_checkpoint:
         print("\nStoring losses...")
         b = pd.DataFrame(value_loss_book)
-        b.to_csv('data/Adv_model/SAC-LunarLander1000-value_loss.csv')
+        b.to_csv('data/Adv-model/SAC-LunarLander500x5-value_loss.csv')
         c = pd.DataFrame(actor_loss_book)
-        c.to_csv('data/Adv_model/SAC-LunarLander1000-actor_loss.csv')
+        c.to_csv('data/Adv-model/SAC-LunarLander500x5-actor_loss.csv')
         d = pd.DataFrame(critic_1_loss_book)
-        d.to_csv('data/Adv_model/SAC-LunarLander1000-critic_1_loss.csv')
+        d.to_csv('data/Adv-model/SAC-LunarLander500x5-critic_1_loss.csv')
         e = pd.DataFrame(critic_2_loss_book)
-        e.to_csv('data/Adv_model/SAC-LunarLander1000-critic_2_loss.csv')
+        e.to_csv('data/Adv-model/SAC-LunarLander500x5-critic_2_loss.csv')
         f = pd.DataFrame(critic_loss_book)
-        f.to_csv('data/Adv_model/SAC-LunarLander1000-critic_loss.csv')
+        f.to_csv('data/Adv-model/SAC-LunarLander500x5-critic_loss.csv')
     print("\nExperiment finished")
