@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 from SAC import Agent
 from tqdm import tqdm
+from advModels.PPO.ppo_torch import Agent as adv_Agent
 from matplotlib import pyplot as plt
 
 perturb = [0.0, 0.1, 0.3, 0.5, 0.7, 0.9]
@@ -24,7 +25,7 @@ if __name__ == '__main__':
         use_timesteps = False
         load_checkpoint = True
         chkpt_dir = 'tmp/sacd'
-        adv_dir = 'tmp/adv'
+        adv_dir = 'advModels/PPO/tmp/adv'
         n_trials = 10
         n_games = 100
         alpha = 0.0003
@@ -39,7 +40,7 @@ if __name__ == '__main__':
         total_timesteps = 0
         perturbation = p
         best_score = env.reward_range[0]
-        reward_history = []    
+        reward_history = [] 
         
         score_book = {}
         value_loss_book = {}
@@ -49,16 +50,20 @@ if __name__ == '__main__':
         critic_loss_book = {}
 
         for trial_num in range(n_trials):
-            print('\nTrial num:', trial_num+1)
+            print('\nTrial num:', trial_num+1)  
             agent = Agent(input_dims=env.observation_space.shape, layer1_size=256, layer2_size=256,
                         env=env, n_actions=env.action_space.n, alpha=alpha, beta=beta, 
                         gamma=gamma, max_size=max_size, tau=tau, ent_alpha=ent_alpha, batch_size=batch_size,
                         reward_scale = reward_scale, chkpt_dir=chkpt_dir)
             
-            advAgent = Agent(input_dims=env.observation_space.shape, layer1_size=200, layer2_size=200,
-                        env=env, n_actions=env.action_space.n, alpha=alpha, beta=beta, 
-                        gamma=gamma, max_size=max_size, tau=tau, ent_alpha=ent_alpha, batch_size=100,
-                        reward_scale = reward_scale, chkpt_dir=adv_dir)
+            advAgent = adv_Agent(n_actions=env.action_space.n, batch_size=5, alpha=0.003, n_epochs=4,
+                        input_dims=env.observation_space.shape, fc1_dims=200, fc2_dims=200,
+                        chkpt_dir=adv_dir)
+
+            # advAgent = Agent(input_dims=env.observation_space.shape, layer1_size=200, layer2_size=200,
+            #             env=env, n_actions=env.action_space.n, alpha=alpha, beta=beta, 
+            #             gamma=gamma, max_size=max_size, tau=tau, ent_alpha=ent_alpha, batch_size=100,
+            #             reward_scale = reward_scale, chkpt_dir=adv_dir)
             
             score_history = []
             loss = []
@@ -67,6 +72,10 @@ if __name__ == '__main__':
             critic_1_loss = []
             critic_2_loss = []
             critic_loss = []
+            # For ppo as adv
+            n_steps = 0
+            N = 20
+            have_grads = False 
 
             if load_checkpoint:
                 agent.load_models()
@@ -84,18 +93,26 @@ if __name__ == '__main__':
                     if use_timesteps:
                         total_timesteps += 1
                 
-                    action, _,_,_ = agent.choose_actions(observation)
+                    action, _, prob, _ = agent.choose_actions(observation)
+                    _, _, val = advAgent.choose_action(observation)
                     observation_, reward, done, info = env.step(action)
+                    # data_grad = advAgent.compute_grads()
+                    # if data_grad is not False:
+                    #     observation_ = fgsm_attack(observation_, perturbation, data_grad)
 
-                    data_grad = advAgent.compute_grads()
-                    if data_grad is not False:
+                    if (n_steps != 0) and (n_steps % N == 0):
+                        data_grad = advAgent.compute_grads()
+                        have_grads = True
+                    if have_grads:
                         observation_ = fgsm_attack(observation_, perturbation, data_grad)
+                    n_steps += 1
 
                     score += reward
                     reward_history.append(reward)
                     
                     agent.remember(observation, action, reward, observation_, done)
-                    advAgent.remember(observation, action, reward, observation_, done)
+                    prob = prob[0, action].item()
+                    advAgent.remember(observation, action, prob, val, reward, done)
                     
                     # if not load_checkpoint:
                     #     loss.append(agent.learn())
@@ -126,5 +143,5 @@ if __name__ == '__main__':
 
         print("\nStoring rewards data...")
         a = pd.DataFrame(score_book)
-        a.to_csv('data/Blackbox/SAC-LunarLander100x10-rewards-testFGSM_'+str(int(10*perturbation))+'.csv')
+        a.to_csv('data/Blackbox/wPPO/SACD-LunarLander100x10-rewards-testFGSM_'+str(int(10*perturbation))+'.csv')
     print("\nExperiment finished")
